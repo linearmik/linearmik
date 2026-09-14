@@ -2,7 +2,7 @@
 
 # Seonhyung Kim
 
-**Perception engineer in the making — I build the vision side of self-driving systems.**
+**Perception engineer in the making - I build the vision side of self-driving systems.**
 
 B.S. in Artificial Intelligence Engineering, Sookmyung Women's University
 
