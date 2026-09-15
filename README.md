@@ -25,8 +25,7 @@ My work centers on object detection, lane perception, sensor fusion, and getting
 Some of my current work lives in private repositories. Happy to walk through it on request.
 
 ---
-![](./profile-3d-contrib/profile-night-rainbow.svg)
-
+![](./profile-3d-contrib/profile-night-view.svg)
 ---
 ## Tech Stack
 
