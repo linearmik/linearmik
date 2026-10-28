@@ -30,7 +30,8 @@ Some of this work lives in private repositories. Happy to walk through it on req
 
 ## Publication
 
-**Effects of Data Scale and Learning-Rate Scheduler Choice in Small-Scale Regression CNNs for Autonomous Driving: Offline and Closed-Loop Evaluation**
+**The Effect of Data Scale and Learning-Rate Scheduling in a Small-Scale
+Autonomous-Driving Regression CNN: Offline and Closed-Loop Evaluation**
 Seonhyung Kim, Youngmin Park (Sookmyung Women's University)
 *ACK 2026, Korea Information Processing Society Fall Conference* · Poster, Nov 6 2026, Sejong University
 
