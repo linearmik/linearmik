@@ -51,68 +51,21 @@ Seonhyung Kim, Youngmin Park (Sookmyung Women's University)
 
 Built and owned the perception stack from sensor input to the obstacle list the planner consumes.
 
-**Architecture**
-- Split `perception/` into lane and obstacle pipelines sharing one node → receiver → result-builder pattern
-- Lanes: CLRNet node integration, resolution auto-detection, IPM range extended 30 → 40 m
-- Camera layout by role (lane / front obstacle + traffic light / side / rear), side cameras at regulation 640×480
-- Obstacles: YOLO + fusion node that projects LiDAR objects into the image to assign classes
-- Data collection tool that saves MORAI frames together with ground-truth ego and obstacle state for auto-labeling
+- **Pipeline**: lane (CLRNet, IPM range 30 → 40 m) and obstacle (YOLO + LiDAR-to-image fusion) pipelines on a shared node → receiver → builder pattern
+- **LiDAR detection**: RANSAC ground removal, 60 m front / ±25 m side / 25 m rear ROI, thin-object handling for cones and posts
+- **Prefilter**: standalone stage before planning: HD-map off-road removal, static/dynamic classification with hysteresis, persistence gating, zone-specific rules
+- **Fusion**: camera-guided recovery of cones and animals that LiDAR clustering misses; animal threshold set at 0.7 from 930 captures ([#90](https://github.com/FROZEN-6/MORAI_demo/pull/90))
+- **Tunnel walls**: real-time wall extraction for the planner, wall-fragment removal 64% → 92% ([#96](https://github.com/FROZEN-6/MORAI_demo/pull/96))
+- **60 m range** ([#116](https://github.com/FROZEN-6/MORAI_demo/pull/116)): stopping from 60 km/h takes ~55 m; detections past 40 m are gated to block road-surface ghosts, runtime held at 6–12 ms
+- **Tracker** ([#107](https://github.com/FROZEN-6/MORAI_demo/pull/107)): a barricade slipping between VLP-16 rings at 18–21 m kept respawning under new IDs with phantom velocity. Reworked static-track memory, occlusion prediction, partial observations, and velocity filtering
 
-**LiDAR detection**
-- RANSAC ground removal with a visual verification tool; margin and slope tuned until low animals survived
-- ROI: front 60 m, sides ±15–25 m, rear 25 m (to catch the trailing car in the adjacent lane during lane changes)
-- Thin, low objects (cones, delineator posts): clusters of 2+ points accepted near the driving path, extending detection range
-- Handled buses and trucks (8–15 m), cars hugging guardrails, angled barriers, and buses crossing in front
-- Shape gate that demotes pedestrian/animal labels with implausibly large footprints to generic obstacles
-- Suppressed over-segmentation and phantom velocity from traffic-light poles and roadside buildings
+| Metric (same recordings replayed) | Baseline | **Final** |
+|---|---|---|
+| Confirmed-ID switches (6 recordings) | 120 | **40** (−67%) |
+| Static objects with false velocity (GT) | 22% | **16%** |
+| Moving-vehicle velocity within ±2 m/s (GT) | 89% | **93%** |
 
-**Pre-planning filter (`prefilter/`)**
-- Designed as a standalone package between perception and planning
-- Off-road removal against HD-map lane polygons, keeping pedestrians, animals, and cones; disables itself on localization FSM loss with a 2 s grace period
-- Static/dynamic classification from map-frame position history with hysteresis, using displacement at both box ends, with a single source of truth for the decision
-- Persistence gate (5 → 8 frames) against transient ghosts
-- Zone-specific rules: guardrail curves and toll gates, cone zones seeded from the LiDAR map with deduplication, detections on mapped guardrails dropped
-- Vectorized polygon tests and a zone lookup cache for runtime; viewer overlays for lane bands, removed objects, and labels
-
-**Camera–LiDAR fusion**
-- Cones: LiDAR points inside camera cone boxes promoted to cone objects, recovering cones LiDAR clustering misses
-- Animals ([#90](https://github.com/FROZEN-6/MORAI_demo/pull/90)): YOLO animal boxes relabel LiDAR objects, held for 1 s through YOLO dropouts. Threshold set to 0.7 after analyzing 930 captures (max false-positive confidence 0.62); enabled by default after GT comparison
-- Drums/barrels (experimental): YOLO-World boxes → circular static obstacles with 2 s hold
-- Per-camera sync tolerance and detection/matching diagnostics
-
-**Tunnel walls**
-- Real-time left/right wall curve extraction from LiDAR on a dedicated thread, active only in tunnels, exported to the planner
-- Wall-fragment removal rate **64% → 92%**
-- [#96](https://github.com/FROZEN-6/MORAI_demo/pull/96): removed thin slivers on and objects behind the wall, extended wall lines, and merged a teammate's implementation into a single wall path (40 m fit, outer wall priority, object points excluded). Fixed a duplicated wall computation introduced during the merge ([#109](https://github.com/FROZEN-6/MORAI_demo/pull/109))
-
-**LiDAR tracker: one object, one ID** ([#107](https://github.com/FROZEN-6/MORAI_demo/pull/107))
-- Root cause of a tunnel failure: at 18–21 m a barricade fell between VLP-16 rings and reappeared under a new ID with 1–8 m/s of phantom velocity, delaying avoidance
-- Fixes: longer memory for static tracks, predicted output while unobserved, partial-observation tracking, velocity outlier rejection, fragment absorption into large static boxes, sensor-timestamp dt, velocity init fix
-- GT comparison on real runs exposed departing vehicles being latched as static; fixed
-
-| Metric (same recordings replayed) | Baseline | Previous | **Final** |
-|---|---|---|---|
-| Confirmed-ID switches (6 recordings) | 120 | 64 | **40** (−67%) |
-| Static objects with false dynamic velocity (competition profile, GT) | 22% | – | **16%** |
-| Moving-vehicle velocity within ±2 m/s (competition profile, GT) | 89% | – | **93%** |
-| IDs in barricade repro scenario | 4 | 3 | **1** |
-
-**60 m forward range** ([#116](https://github.com/FROZEN-6/MORAI_demo/pull/116))
-- Stopping from 60 km/h needs ~55 m, so range had to grow before speed could
-- Beyond 40 m, objects pass only with camera confirmation, a prior close-range sighting, or ≥4 m/s motion sustained for 0.5 s, blocking distant road-surface ghosts
-- 98% identical output in 0–40 m, runtime held at 6–12 ms, 15–56% detection of moving vehicles at 50–60 m
-
-**Evaluation tooling** (`scripts/lidar_check/`)
-- LiDAR frame dumps with old-vs-new code replay, raycast-based synthetic scenes, BEV plots
-- `track_hold_compare.py`: tracker A/B with GT scoring (GT ↔ localization time alignment), confirmed-ID switches, range-binned metrics
-- Found that the raw ID-switch metric was dominated by roadside clutter and replaced it with a confirmed-track metric
-- `track_id_check.py`, `wall_filter_check.py`, `camera_rescue_check.py`, `barrel_map_check.py`
-
-**Cross-team integration**
-- Localization: better GNSS-shadow detection in tunnels; disabled a map matcher that was dragging the pose
-- Planning/control: CLRNet lane blending in tunnels only, avoidance cost and margin experiments
-- Traced from planner input logs a case where the prefilter erased an obstacle directly ahead mid-avoidance
-- Validated the tracker against the competition-stabilization branch under `--competition`; coordinated PR integration and maintained README and environment docs
+Also wrote the replay and GT-scoring tools behind these numbers (`scripts/lidar_check/`), and supported localization and planning integration.
 
 ---
 
