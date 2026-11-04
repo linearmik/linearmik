@@ -83,69 +83,35 @@ Seonhyung Kim, Youngmin Park (Sookmyung Women's University)
 ## Projects
 
 ### Autonomous Driving Perception · Team FROZEN
-2026 KASA AI·S/W Mobility Autonomous Driving Competition · **Perception Lead** · MORAI SIM, ROS, Python · Aug–Oct 2026
+2026 KASA AI·S/W Mobility Autonomous Driving Competition · **Perception Lead** · MORAI SIM, ROS, Python
 
-Built and owned the perception stack from sensor input to the obstacle list the planner consumes.
+Owned the perception stack end to end, from raw LiDAR/camera input to the obstacle list the planner consumes.
 
-- **Pipeline**: lane (CLRNet, IPM range 30 → 40 m) and obstacle (YOLO + LiDAR-to-image fusion) pipelines on a shared node → receiver → builder pattern
-- **LiDAR detection**: RANSAC ground removal, 60 m front / ±25 m side / 25 m rear ROI, thin-object handling for cones and posts
-- **Prefilter**: standalone stage before planning: HD-map off-road removal, static/dynamic classification with hysteresis, persistence gating, zone-specific rules
-- **Fusion**: camera-guided recovery of cones and animals that LiDAR clustering misses; animal threshold set at 0.7 from 930 captures ([#90](https://github.com/FROZEN-6/MORAI_demo/pull/90))
-- **Tunnel walls**: real-time wall extraction for the planner, wall-fragment removal 64% → 92% ([#96](https://github.com/FROZEN-6/MORAI_demo/pull/96))
-- **60 m range** ([#116](https://github.com/FROZEN-6/MORAI_demo/pull/116)): stopping from 60 km/h takes ~55 m; detections past 40 m are gated to block road-surface ghosts, runtime held at 6–12 ms
-- **Tracker** ([#107](https://github.com/FROZEN-6/MORAI_demo/pull/107)): a barricade slipping between VLP-16 rings at 18–21 m kept respawning under new IDs with phantom velocity. Reworked static-track memory, occlusion prediction, partial observations, and velocity filtering
+- LiDAR detection with camera fusion (YOLO, CLRNet lanes), plus a prefilter stage (HD-map, static/dynamic, persistence) before planning
+- Extended detection to 60 m to cover stopping distance at 60 km/h, holding runtime at 6–12 ms ([#116](https://github.com/FROZEN-6/MORAI_demo/pull/116))
+- Traced barricade ID respawns to objects slipping between VLP-16 rings and reworked the tracker: **ID switches −67%** (120 → 40), moving-vehicle velocity accuracy 89% → 93% ([#107](https://github.com/FROZEN-6/MORAI_demo/pull/107))
+- Built the replay and GT-scoring tools used to measure each change
 
-| Metric (same recordings replayed) | Baseline | **Final** |
-|---|---|---|
-| Confirmed-ID switches (6 recordings) | 120 | **40** (−67%) |
-| Static objects with false velocity (GT) | 22% | **16%** |
-| Moving-vehicle velocity within ±2 m/s (GT) | 89% | **93%** |
+### VLM-Based Drone Navigation · Industry Project
+Aero Robotics Innovation (ARI) · **AI/Perception** · Isaac ROS, ROS 2 · Fall 2026
 
-Also wrote the replay and GT-scoring tools behind these numbers (`scripts/lidar_check/`), and supported localization and planning integration.
-
----
-
-### VLM-Based Drone Autonomous Navigation · Industry Project
-Aero Robotics Innovation (ARI) × Sookmyung SW-Centered University Program · **AI/Perception** · Fall 2026
-
-Moving drone autonomy past reactive obstacle avoidance toward decisions grounded in spatial perception and visual context. My track fuses Visual SLAM geometry with lightweight ViT/VLM semantics.
-
-- Provisioned the full GPU stack from bare metal: Ubuntu 22.04 dual-boot, NVIDIA driver 560 / CUDA 12.6, Docker + NVIDIA Container Toolkit with verified in-container GPU passthrough
-- Built the Isaac ROS dev container (release-3.2, ROS 2 Humble) via `isaac_ros_common`
-- Remote workflow: Tailscale mesh SSH from a MacBook, tmux for disconnect-safe builds, sleep targets masked for an always-on host
-- Running Isaac ROS Visual SLAM (cuVSLAM) on stereo rosbags: real-time pose, mapping, and point clouds in RViz2
-- Next: ViT semantic segmentation → 3D semantic map → VLM projection for spatial reasoning, then Isaac Sim
-
-Dev: RTX 3060 12 GB workstation · Target: Jetson Orin NX (on-device, real-time). Partner materials are not included in any public repo.
-
----
+- Fusing Visual SLAM geometry with ViT/VLM semantics for context-aware drone autonomy (target: Jetson Orin NX)
+- Set up the GPU, Docker, and Isaac ROS environment from bare metal; cuVSLAM running on stereo rosbags
 
 ### End-to-End Driving with PilotNet
 [`seonhyung021/autonomous-car`](https://github.com/seonhyung021/autonomous-car) · Basis of the ACK 2026 paper
 
-An RC car that drives from camera input alone. Extends NVIDIA's end-to-end approach to **multi-output regression of steering and speed**.
-
-- Raspberry Pi data collection (camera + ToF) with stage-by-stage debug image logging
-- Controlled scheduler and learning-rate studies across datasets, scales, and seeds
-- Obstacle avoidance as a four-state machine (AVOID → STRAIGHT → RETURN → NORMAL) with linear blending on entry and exit
+Camera-only RC car on Raspberry Pi that regresses steering and speed, with a state-machine layer for obstacle avoidance.
 
 ### MuMulYak · Medication Identification
-[`seonhyung021/winter-team5`](https://github.com/seonhyung021/winter-team5) · Sookmyung Azure Winter School, Team 5
+[`seonhyung021/winter-team5`](https://github.com/seonhyung021/winter-team5) · Sookmyung Azure Winter School
 
-Identifies a pill from one photo and generates plain-language dosage guidance.
-
-- Azure Custom Vision classification, with Azure AI Vision OCR on imprint text as a second pass
-- Azure OpenAI for Korean descriptions, dosage instructions, and warnings
-- Gradio frontend with a card-based mobile layout; images processed transiently, never stored
+Identifies a pill from one photo (Azure Custom Vision + OCR) and generates dosage guidance with Azure OpenAI.
 
 ### SafeStep · Location-Aware Fall Detection
-[`seonhyung021/SafeStep`](https://github.com/seonhyung021/SafeStep) · Open Source Programming · Owned the **CNN location classifier**
+[`seonhyung021/SafeStep`](https://github.com/seonhyung021/SafeStep) · Open Source Programming
 
-Detects falls and escalates by location: stairs high-risk, flat ground low-risk.
-
-- ResNet18 transfer learning (ImageNet weights, 2-class head), Adam lr=5e-4, class-weighted cross-entropy
-- **99.2%** on stairs, **92%+** on ground; cleaned class imbalance, HEIC conversion, and corrupted PNGs
-- Integrated with MediaPipe Pose fall detection and a gTTS/STT dialogue that escalates to an emergency call on no response
+Owned the ResNet18 stairs/ground classifier (**99.2%** / **92%+**) that sets fall risk by location, integrated with MediaPipe Pose.
 
 ---
 
